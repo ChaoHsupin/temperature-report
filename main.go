@@ -49,10 +49,13 @@ func reportTemper(user config.User, recount int8) bool {
 		return false
 	}
 
+	hour, min := CurrentTime()
 	data := make(url.Values)
-	data["ReportTime"] = []string{CurrentTime()}
-	data["Temperature"] = []string{"36." + RandomAInt()}
-	data["OrderId"] = []string{RandomOrderId()}
+	data["TimeNowHour"] = []string{hour}
+	data["TimeNowMinute"] = []string{min}
+	data["Temper1"] = []string{"36"}
+	data["Temper2"] = []string{RandomAInt()}
+	data["ReSubmiteFlag"] = []string{RandomOrderId()}
 
 	req, err := http.NewRequest("POST", url_report, strings.NewReader(data.Encode()))
 	if err != nil {
@@ -80,7 +83,7 @@ func reportTemper(user config.User, recount int8) bool {
 	success := strings.Contains(string(respBody), "成功")
 
 	if !success {
-		time.Sleep(time.Minute*time.Duration(time.Now().Hour()/3))
+		time.Sleep(time.Minute * time.Duration(time.Now().Hour()/3))
 		return reportTemper(user, recount-1)
 	} else {
 		return success
@@ -97,8 +100,8 @@ func sendEMail(user config.User, suc bool) error {
 	subject := "体温自动上报通知-言言技术"
 	contentType := "Content-Type:text/plain;charset=UTF-8\r\n"
 	body := "name：" + user.Name +
-		"\nstudent id: "+user.StudentId+
-		"\nreport success：" + strconv.FormatBool(suc)+
+		"\nstudent id: " + user.StudentId +
+		"\nreport success：" + strconv.FormatBool(suc) +
 		"\n如果上报状态失败，则可能是晚上9点尝试第四次上报，不用在乎。若是下午5点则可能当天由于学校系统重复上报，若上午9点或下午1点上报失败请联系我～"
 	msg := []byte("To: " + strings.Join(to, ",") + "\r\nFrom: " + nickname +
 		"<" + senderAddr + ">\r\nSubject: " + subject + "\r\n" + contentType + "\r\n\r\n" + body)
@@ -112,9 +115,9 @@ func sendEMail(user config.User, suc bool) error {
 	return nil
 }
 
-func CurrentTime() string {
+func CurrentTime() (string, string) {
 	currentTime := time.Now()
-	return strconv.Itoa(currentTime.Hour()) + ":" + strconv.Itoa(currentTime.Minute())
+	return strconv.Itoa(currentTime.Hour()), strconv.Itoa(currentTime.Minute())
 }
 
 func RandomOrderId() string {
