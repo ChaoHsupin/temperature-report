@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	url_home   = "http://xsc.swust.edu.cn/SPCP/Web/"
 	url_report = "http://xsc.swust.edu.cn/SPCP/Web/Temperature/StuTemperatureInfo"
 )
 
@@ -25,17 +24,16 @@ func main() {
 
 	c := cron.New()
 	c.AddFunc("2 9,13,17,21 * * *", func() {
-
 		for _, v := range config.GetConf().Users {
-			result := reportTemper(v, 3)
-
-			if result == true {
-				log.Println(v.Name + " 填报成功")
-
-			} else {
-				log.Println(v.Name + " 填报失败")
-			}
-			sendEMail(v, result)
+			go func() {
+				result := reportTemper(v, 3)
+				if result == true {
+					log.Println(v.Name + " 填报成功")
+				} else {
+					log.Println(v.Name + " 填报失败")
+				}
+				sendEMail(v, result)
+			}()
 		}
 	})
 
@@ -96,7 +94,7 @@ func sendEMail(user config.User, suc bool) error {
 	authCode := "leqkyvxagbbnhafj"
 	auth := smtp.PlainAuth("", senderAddr, authCode, "smtp.qq.com")
 	to := []string{receviceAddr}
-	nickname := "体温健康"
+	nickname := "言言健康"
 	subject := "体温自动上报通知-言言技术"
 	contentType := "Content-Type:text/plain;charset=UTF-8\r\n"
 	body := "name：" + user.Name +
