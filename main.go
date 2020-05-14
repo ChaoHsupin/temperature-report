@@ -26,7 +26,8 @@ func main() {
 	c := cron.New()
 	c.AddFunc("2 9,13,17,21 * * *", func() {
 		for _, v := range config.GetConf().Users {
-			go func() {
+			go func(user config.User) {
+				println(user.Name)
 				hour, min, temper1, temper2, result := reportTemper(v, 3)
 				if result == true {
 					log.Println(v.Name + " 填报成功")
@@ -34,7 +35,7 @@ func main() {
 					log.Println(v.Name + " 填报失败")
 				}
 				sendEMail(v, hour, min, temper1, temper2, result)
-			}()
+			}(v)
 		}
 	})
 
