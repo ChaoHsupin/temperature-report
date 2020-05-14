@@ -93,9 +93,10 @@ func reportTemper(user config.User, recount int8) (string, string, string, strin
 
 func sendEMail(user config.User, timeNowHour, timeNowMinute, temper1, temper2 string, suc bool) error {
 	receviceAddr := user.Email
-	senderAddr := "1316952971@qq.com"
-	authCode := "leqkyvxagbbnhafj"
-	auth := smtp.PlainAuth("", senderAddr, authCode, "smtp.qq.com")
+	senderAddr := "yan_tech@yeah.net"
+	authCode := "NFPOJZLTRPJPANZE"
+	host := "smtp.yeah.net"
+	auth := smtp.PlainAuth("", senderAddr, authCode, host)
 	to := []string{receviceAddr}
 	nickname := "言言健康"
 	subject := "体温自动上报通知-言言技术"
@@ -109,7 +110,7 @@ func sendEMail(user config.User, timeNowHour, timeNowMinute, temper1, temper2 st
 		"\n如果上报状态失败，则可能是晚上9点尝试第四次上报，不用在乎。若是下午5点则可能当天由于学校系统重复上报，若上午9点或下午1点上报失败请联系我～"
 	msg := []byte("To: " + strings.Join(to, ",") + "\r\nFrom: " + nickname +
 		"<" + senderAddr + ">\r\nSubject: " + subject + "\r\n" + contentType + "\r\n\r\n" + body)
-	err := smtp.SendMail("smtp.qq.com:25", auth, senderAddr, to, msg)
+	err := smtp.SendMail(host+":25", auth, senderAddr, to, msg)
 	if err != nil {
 		err = fmt.Errorf("邮件发送失败%v", err)
 		log.Println(err)
