@@ -19,50 +19,71 @@ const (
 	url_report = "http://xsc.swust.edu.cn/SPCP/Web/Temperature/StuTemperatureInfo"
 )
 
+type TemperAndTime struct {
+	TimeNowHour   string
+	TimeNowMinute string
+	Temper1       string
+	Temper2       string
+	ReSubmiteFlag string
+}
+
+func NewTemperAndTime() *TemperAndTime {
+	return &TemperAndTime{
+		TimeNowHour:   strconv.Itoa(time.Now().Hour()),
+		TimeNowMinute: strconv.Itoa(time.Now().Minute()),
+		Temper1:       "36",
+		Temper2:       RandomAInt(),
+	}
+}
+
 func main() {
 
-	log.Println("Task started")
+	users := config.GetConf().Users
+	log.Println("Report task started")
+	log.Println("当前配置上报 " + strconv.Itoa(len(users)) + " 人")
 
 	c := cron.New()
-	c.AddFunc("2 9,13,17,21 * * *", func() {
-		for _, v := range config.GetConf().Users {
-			go func(user config.User) {
-				println(user.Name)
-				hour, min, temper1, temper2, result := reportTemper(v, 3)
-				if result == true {
-					log.Println(v.Name + " 填报成功")
-				} else {
-					log.Println(v.Name + " 填报失败")
-				}
-				sendEMail(v, hour, min, temper1, temper2, result)
-			}(v)
+	c.AddFunc("2 9,13,17,21,22 * * *", func() {
+		for _, u := range users {
+			go reportTask(u)
 		}
 	})
-
 	c.Start()
 	select {}
 }
 
-func reportTemper(user config.User, recount int8) (string, string, string, string, bool) {
+func reportTask(user config.User) {
 
-	hour, min := CurrentTime()
-	temper1 := "36"
-	temper2 := RandomAInt()
-
-	if recount == 0 {
-		return hour, min, temper1, temper2, false
+	resMsg := ""
+	reCount := 5
+	for index := 1; index <= reCount; index++ {
+		success, msg, temperAndTime := reportTemper(user)
+		resMsg = resMsg + "第" + strconv.Itoa(index) + "尝试: " + msg + "\n"
+		if strings.Contains(msg, "0") {
+			sendEMail(user, temperAndTime, success, resMsg)
+			break
+		} else if strings.Contains(msg, "") {
+			time.Sleep(time.Duration(time.Now().Hour()/4) * time.Minute)
+		}
 	}
+}
+
+func reportTemper(user config.User) (bool, string, *TemperAndTime) {
+
+	temperAndTime := NewTemperAndTime()
+
 	data := make(url.Values)
-	data["TimeNowHour"] = []string{hour}
-	data["TimeNowMinute"] = []string{min}
-	data["Temper1"] = []string{temper1}
-	data["Temper2"] = []string{temper2}
+	data["TimeNowHour"] = []string{temperAndTime.TimeNowHour}
+	data["TimeNowMinute"] = []string{temperAndTime.TimeNowMinute}
+	data["Temper1"] = []string{temperAndTime.Temper1}
+	data["Temper2"] = []string{temperAndTime.Temper2}
 	data["ReSubmiteFlag"] = []string{RandomOrderId()}
 
 	req, err := http.NewRequest("POST", url_report, strings.NewReader(data.Encode()))
 	if err != nil {
-		log.Println(user.Name+"	create req failed", err)
-		return hour, min, temper1, temper2, false
+		msg := "code: -1,创建请求发生错误"
+		log.Println(user.Name+" 的请求构造："+msg, err)
+		return false, msg, temperAndTime
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36")
@@ -70,29 +91,40 @@ func reportTemper(user config.User, recount int8) (string, string, string, strin
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return hour, min, temper1, temper2, false
+		msg := "code: -1,站点无响应"
+		log.Println(user.Name+" 的请求："+msg, err)
+		return false, msg, temperAndTime
 	}
 	if resp.StatusCode >= 300 {
-		log.Println(user.Name+"	Request failed", "code: ", resp.StatusCode)
+		msg := "code: -1,站点状态码不正确"
+		log.Println(user.Name+" 的请求："+msg, resp.StatusCode)
+		return false, msg, temperAndTime
 	}
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Println(user.Name+"	Parse text failed", err)
-		return hour, min, temper1, temper2, false
+		msg := "code: -1,站点超时或返回文本异常"
+		log.Println(user.Name+" 的请求："+msg, err)
+		return false, msg, temperAndTime
 	}
-	println(string(respBody))
-	success := strings.Contains(string(respBody), "成功")
 
-	if !success {
-		time.Sleep(time.Minute * time.Duration(time.Now().Hour()/4))
-		return reportTemper(user, recount-1)
-	} else {
-		return hour, min, temper1, temper2, true
+	text := string(respBody)
+	success := false
+	msg := "code: -1,未知异常或错误"
+	if strings.Contains(text, "成功") {
+		msg = "code: 0,填报成功"
+		success = true
+	} else if strings.Contains(text, "次数已完成") {
+		msg = "code: 0,今日填报次数已完成"
+	} else if strings.Contains(text, "小时") {
+		msg = "code: 0,当前填报未超过4小时"
 	}
+	log.Println(user.Name + " 填报结果：" + msg)
+
+	return success, msg, temperAndTime
 }
 
-func sendEMail(user config.User, timeNowHour, timeNowMinute, temper1, temper2 string, suc bool) error {
+func sendEMail(user config.User, temperAndTime *TemperAndTime, success bool, reMsg string) error {
 	receviceAddr := user.Email
 	senderAddr := "1316952971@qq.com"
 	authCode := "leqkyvxagbbnhafj"
@@ -104,10 +136,11 @@ func sendEMail(user config.User, timeNowHour, timeNowMinute, temper1, temper2 st
 	contentType := "Content-Type:text/plain;charset=UTF-8\r\n"
 	body := "name：" + user.Name +
 		"\nstudent id: " + user.StudentId +
-		"\nreport time: " + timeNowHour + ":" + timeNowMinute +
-		"\nreport temper: " + temper1 + "." + temper2 + " 摄氏度" +
-		"\nreport success：" + strconv.FormatBool(suc) +
-		"\nversion：V4" +
+		"\nreport time: " + temperAndTime.TimeNowHour + ":" + temperAndTime.TimeNowMinute +
+		"\nreport temper: " + temperAndTime.Temper1 + "." + temperAndTime.Temper2 + " 摄氏度" +
+		"\nreport success：" + strconv.FormatBool(success) +
+		"\nreport result：" + reMsg +
+		"version：V5" +
 		"\n如果上报状态失败，则可能是晚上9点尝试第四次上报，不用在乎。若是下午5点则可能当天由于学校系统重复上报，若上午9点或下午1点上报失败请联系我～"
 	msg := []byte("To: " + strings.Join(to, ",") + "\r\nFrom: " + nickname +
 		"<" + senderAddr + ">\r\nSubject: " + subject + "\r\n" + contentType + "\r\n\r\n" + body)
@@ -119,11 +152,6 @@ func sendEMail(user config.User, timeNowHour, timeNowMinute, temper1, temper2 st
 	}
 	log.Println("邮件发送成功")
 	return nil
-}
-
-func CurrentTime() (string, string) {
-	currentTime := time.Now()
-	return strconv.Itoa(currentTime.Hour()), strconv.Itoa(currentTime.Minute())
 }
 
 func RandomOrderId() string {
