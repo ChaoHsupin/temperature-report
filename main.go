@@ -62,7 +62,7 @@ func reportTask(user config.User) {
 		if strings.Contains(msg, "0") {
 			sendEMail(user, temperAndTime, success, resMsg)
 			break
-		} else if strings.Contains(msg, "") {
+		} else {
 			time.Sleep(time.Duration(time.Now().Hour()/4) * time.Minute)
 		}
 	}
