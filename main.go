@@ -85,7 +85,7 @@ func reportTemper(user config.User, recount int8) (string, string, string, strin
 	success := strings.Contains(string(respBody), "成功")
 
 	if !success {
-		time.Sleep(time.Minute * time.Duration(time.Now().Hour()/3))
+		time.Sleep(time.Minute * time.Duration(time.Now().Hour()/4))
 		return reportTemper(user, recount-1)
 	} else {
 		return hour, min, temper1, temper2, true
@@ -94,9 +94,9 @@ func reportTemper(user config.User, recount int8) (string, string, string, strin
 
 func sendEMail(user config.User, timeNowHour, timeNowMinute, temper1, temper2 string, suc bool) error {
 	receviceAddr := user.Email
-	senderAddr := "yan_tech@yeah.net"
-	authCode := "NFPOJZLTRPJPANZE"
-	host := "smtp.yeah.net"
+	senderAddr := "1316952971@qq.com"
+	authCode := "leqkyvxagbbnhafj"
+	host := "smtp.qq.com"
 	auth := smtp.PlainAuth("", senderAddr, authCode, host)
 	to := []string{receviceAddr}
 	nickname := "言言健康"
