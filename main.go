@@ -90,7 +90,9 @@ func reportTemper(user config.User) (bool, string, *TemperAndTime) {
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36")
 	req.Header.Set("Cookie", user.Cookie)
 
-	resp, err := http.DefaultClient.Do(req)
+	httpClient := http.DefaultClient
+	httpClient.Timeout = 1 * time.Minute
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		msg := "code: -1,站点无响应"
 		log.Println(user.Name+" 的请求："+msg, err)
@@ -170,6 +172,6 @@ func RandomOrderId() string {
 }
 
 func RandomAInt() string {
-	randInt := rand.New(rand.NewSource(time.Now().Unix())).Intn(10)
+	randInt := rand.Intn(10)
 	return strconv.Itoa(randInt)
 }
