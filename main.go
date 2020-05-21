@@ -40,7 +40,7 @@ func main() {
 
 	users := config.GetConf().Users
 	log.Println("Report task started")
-	log.Println("当前配置上报 " + strconv.Itoa(len(users)) + " 人")
+	log.Println("当前配置上报", len(users), "人")
 
 	c := cron.New()
 	c.AddFunc("2 9,13,17,21,22 * * *", func() {
@@ -58,7 +58,7 @@ func reportTask(user config.User) {
 	reCount := 5
 	for index := 1; index <= reCount; index++ {
 		success, msg, temperAndTime := reportTemper(user)
-		resMsg = resMsg + "第" + strconv.Itoa(index) + "尝试: " + msg + "\n"
+		resMsg = resMsg + "第" + strconv.Itoa(index) + "次尝试: " + msg + "\n"
 		if strings.Contains(msg, "0") {
 			sendEMail(user, temperAndTime, success, resMsg)
 			return
@@ -83,7 +83,7 @@ func reportTemper(user config.User) (bool, string, *TemperAndTime) {
 	req, err := http.NewRequest("POST", url_report, strings.NewReader(data.Encode()))
 	if err != nil {
 		msg := "code: -1,创建请求发生错误"
-		log.Println(user.Name+" 的请求构造："+msg, err)
+		log.Println(user.Name, "的请求构造：", msg, err)
 		return false, msg, temperAndTime
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -95,19 +95,19 @@ func reportTemper(user config.User) (bool, string, *TemperAndTime) {
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		msg := "code: -1,站点无响应"
-		log.Println(user.Name+" 的请求："+msg, err)
+		log.Println(user.Name, "的请求：", msg, err)
 		return false, msg, temperAndTime
 	}
 	if resp.StatusCode >= 300 {
 		msg := "code: -1,站点状态码不正确"
-		log.Println(user.Name+" 的请求："+msg, resp.StatusCode)
+		log.Println(user.Name, "的请求：", msg, resp.StatusCode)
 		return false, msg, temperAndTime
 	}
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		msg := "code: -1,站点超时或返回文本异常"
-		log.Println(user.Name+" 的请求："+msg, err)
+		log.Println(user.Name, "的请求：", msg, err)
 		return false, msg, temperAndTime
 	}
 
@@ -122,7 +122,7 @@ func reportTemper(user config.User) (bool, string, *TemperAndTime) {
 	} else if strings.Contains(text, "小时") {
 		msg = "code: 0,当前填报未超过4小时"
 	}
-	log.Println(user.Name + " 填报结果：" + msg)
+	log.Println(user.Name, "填报结果：", msg)
 
 	return success, msg, temperAndTime
 }
