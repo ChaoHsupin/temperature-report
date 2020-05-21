@@ -61,11 +61,12 @@ func reportTask(user config.User) {
 		resMsg = resMsg + "第" + strconv.Itoa(index) + "尝试: " + msg + "\n"
 		if strings.Contains(msg, "0") {
 			sendEMail(user, temperAndTime, success, resMsg)
-			break
+			return
 		} else {
 			time.Sleep(time.Duration(time.Now().Hour()/4) * time.Minute)
 		}
 	}
+	sendEMail(user, NewTemperAndTime(), false, resMsg)
 }
 
 func reportTemper(user config.User) (bool, string, *TemperAndTime) {
